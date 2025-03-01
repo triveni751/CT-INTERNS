@@ -1,0 +1,128 @@
+import os
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.backends import default_backend
+import base64
+import getpass
+
+class AESCipher:
+    """
+    A class to handle AES encryption and decryption.
+    """
+
+    def __init__(self, key):
+        """
+        Initializes the AESCipher with a given key.
+
+        :param key: The encryption key (must be 32 bytes for AES-256).
+        """
+        self.key = key
+
+    def encrypt(self, plaintext):
+        """
+        Encrypts the given plaintext using AES-256.
+
+        :param plaintext: The data to encrypt.
+        :return: The encrypted data.
+        """
+        # Generate a random IV
+        iv = os.urandom(16)
+        cipher = Cipher(algorithms.AES(self.key), modes.CBC(iv), backend=default_backend())
+        encryptor = cipher.encryptor()
+
+        # Pad the plaintext to be a multiple of the block size
+        padder = padding.PKCS7(algorithms.AES.block_size).padder()
+        padded_data = padder.update(plaintext) + padder.finalize()
+
+        # Encrypt the padded data
+        ciphertext = encryptor.update(padded_data) + encryptor.finalize()
+
+        # Return the IV and ciphertext, both base64 encoded
+        return base64.b64encode(iv + ciphertext).decode('utf-8')
+
+    def decrypt(self, encrypted_data):
+        """
+        Decrypts the given encrypted data using AES-256.
+
+        :param encrypted_data: The data to decrypt.
+        :return: The decrypted plaintext.
+        """
+        # Decode the base64 encoded data
+        encrypted_data = base64.b64decode(encrypted_data)
+
+        # Extract the IV and ciphertext
+        iv = encrypted_data[:16]
+        ciphertext = encrypted_data[16:]
+
+        cipher = Cipher(algorithms.AES(self.key), modes.CBC(iv), backend=default_backend())
+        decryptor = cipher.decryptor()
+
+        # Decrypt the ciphertext
+        padded_plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+
+        # Unpad the plaintext
+        unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+        plaintext = unpadder.update(padded_plaintext) + unpadder.finalize()
+
+        return plaintext
+
+def main():
+    """
+    Main function to run the encryption tool.
+    """
+    print("Welcome to the Advanced Encryption Tool")
+    print("Please enter a 32-byte key for AES-256 encryption.")
+    key = getpass.getpass("Key (32 bytes): ").encode('utf-8')
+
+    if len(key) != 32:
+        print("Error: Key must be exactly 32 bytes.")
+        return
+
+    aes_cipher = AESCipher(key)
+
+    while True:
+        print("\nOptions:")
+        print("1. Encrypt a file")
+        print("2. Decrypt a file")
+        print("3. Exit")
+        choice = input("Select an option (1-3): ")
+
+        if choice == '1':
+            file_path = input("Enter the path of the file to encrypt: ")
+            if not os.path.isfile(file_path):
+                print("File does not exist.")
+                continue
+
+            with open(file_path, 'rb') as file:
+                plaintext = file.read()
+
+            encrypted_data = aes_cipher.encrypt(plaintext)
+            with open(file_path + '.enc', 'w') as file:
+                file.write(encrypted_data)
+
+            print(f"File encrypted successfully: {file_path}.enc")
+
+        elif choice == '2':
+            file_path = input("Enter the path of the file to decrypt: ")
+            if not os.path.isfile(file_path):
+                print("File does not exist.")
+                continue
+
+            with open(file_path, 'r') as file:
+                encrypted_data = file.read()
+
+            try:
+                decrypted_data = aes_cipher.decrypt(encrypted_data)
+                with open(file_path[:-4], 'wb') as file:
+                    file.write(decrypted_data)
+
+                print(f"File decrypted successfully: {file_path[:-4]}")
+            except Exception as e:
+                print(f"Decryption failed: {e}")
+
+        elif choice == '3':
+            print("Exiting the tool.")
+            break
+
+        else:
+            print("Invalid choice. Please
