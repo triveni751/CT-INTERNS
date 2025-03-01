@@ -1,0 +1,64 @@
+import hashlib
+import os
+import json
+import time
+
+class FileIntegrityChecker:
+    def __init__(self, file_paths, hash_file='hashes.json'):
+        self.file_paths = file_paths
+        self.hash_file = hash_file
+        self.hashes = self.load_hashes()
+
+    def calculate_hash(self, file_path):
+        """Calculate the SHA-256 hash of a file."""
+        hasher = hashlib.sha256()
+        with open(file_path, 'rb') as f:
+            while chunk := f.read(8192):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+
+    def load_hashes(self):
+        """Load stored hashes from a JSON file."""
+        if os.path.exists(self.hash_file):
+            with open(self.hash_file, 'r') as f:
+                return json.load(f)
+        return {}
+
+    def save_hashes(self):
+        """Save current hashes to a JSON file."""
+        with open(self.hash_file, 'w') as f:
+            json.dump(self.hashes, f)
+
+    def check_files(self):
+        """Check files for changes."""
+        for file_path in self.file_paths:
+            if os.path.exists(file_path):
+                current_hash = self.calculate_hash(file_path)
+                if file_path in self.hashes:
+                    if self.hashes[file_path] != current_hash:
+                        print(f"Change detected in: {file_path}")
+                    else:
+                        print(f"No change in: {file_path}")
+                else:
+                    print(f"New file added: {file_path}")
+                self.hashes[file_path] = current_hash
+            else:
+                if file_path in self.hashes:
+                    print(f"File removed: {file_path}")
+                    del self.hashes[file_path]
+
+        self.save_hashes()
+
+if __name__ == "__main__":
+    # List of files to monitor
+    files_to_monitor = ['file1.txt', 'file2.txt']  # Add your file paths here
+
+    checker = FileIntegrityChecker(files_to_monitor)
+
+    # Monitor files indefinitely
+    try:
+        while True:
+            checker.check_files()
+            time.sleep(10)  # Check every 10 seconds
+    except KeyboardInterrupt:
+        print("Monitoring stopped.")
